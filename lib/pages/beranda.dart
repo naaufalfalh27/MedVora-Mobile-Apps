@@ -2,8 +2,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:medivora/pages/kalenderPage.dart';
+import 'package:http/http.dart' as http;
 import 'alarm.dart';
-import 'welcome.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+
 
 class BerandaPage extends StatefulWidget {
   const BerandaPage({super.key});
@@ -13,12 +16,42 @@ class BerandaPage extends StatefulWidget {
 }
 
 class _BerandaPageState extends State<BerandaPage> {
+  String namaPasien = ''; // Variabel untuk nama pasien
+  List<dynamic> alarms = []; // Menyimpan data alarm
+
   @override
   void initState() {
     super.initState();
+    _loadUserData();  // Load nama pasien dari SharedPreferences
     _checkAlarmTime();
+    _getAlarms();
   }
 
+  // Fungsi untuk memuat nama pasien dari SharedPreferences
+   void _loadUserData() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      namaPasien = prefs.getString('nama_pasien') ?? 'Pasien'; // Default 'Pasien' jika data tidak ada
+    });
+  }
+   // Fungsi untuk mengambil data alarm dari API
+  Future<void> _getAlarms() async {
+    final prefs = await SharedPreferences.getInstance();
+    String? idPasien = prefs.getString('id_pasien');
+
+    if (idPasien != null) {
+      final response = await http.get(Uri.parse(
+          'http://127.0.0.1/medvora_api/get_alarms.php?id_pasien=$idPasien'));
+
+      if (response.statusCode == 200) {
+        setState(() {
+          alarms = json.decode(response.body);
+        });
+      } else {
+        throw Exception('Failed to load alarms');
+      }
+    }
+  }
   void _checkAlarmTime() {
     DateTime now = DateTime.now();
     String currentTime = DateFormat.Hm().format(now); // format: "22.00"
@@ -56,7 +89,7 @@ class _BerandaPageState extends State<BerandaPage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        title: const Text("Hi Sweety!"),
+        title: Text("Hi $namaPasien!"), // Menggunakan nama pasien
         backgroundColor: Colors.white,
         elevation: 1,
         actions: const [
@@ -176,27 +209,26 @@ class _BerandaPageState extends State<BerandaPage> {
 
             const SizedBox(height: 20),
 
-            const Text("Medication Alarm List",
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            // Medication Alarm List (Menampilkan data alarm)
+            const Text("Medication Alarm List", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
-
             SizedBox(
               height: 400,
               child: ListView.separated(
-                itemCount: 3,
+                itemCount: alarms.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 10),
                 itemBuilder: (context, index) {
-                  bool isAmbeven = index == 1;
+                  var alarm = alarms[index];
                   return GestureDetector(
                     onTap: () => showInformasiObatPopup(
                       context,
-                      isAmbeven ? "Ambeven" : "Paracetamol",
-                      isAmbeven ? "1 Kapsul" : "2 Tablet",
-                      isAmbeven ? "03.29" : "14.00",
-                      "21-04-2025 s/d 23-04-2025",
-                      isAmbeven ? "Sebelum makan" : "Sesudah makan",
-                      isAmbeven ? "Pusing, mual ringan" : "Mual, muntah",
-                      "Dikonsumsi ${isAmbeven ? 'sebelum' : 'sesudah'} makan dengan air putih.",
+                      alarm['id_obat'],
+                      alarm['takaran'],
+                      alarm['waktu_minum'],
+                      alarm['tanggal_mulai'],
+                      alarm['instruksi'],
+                      alarm['efek_samping'],
+                      alarm['catatan'],
                     ),
                     child: Container(
                       padding: const EdgeInsets.all(12),
@@ -217,11 +249,9 @@ class _BerandaPageState extends State<BerandaPage> {
                             margin: const EdgeInsets.only(right: 12),
                             child: Row(
                               children: const [
-                                Icon(Icons.medication,
-                                    size: 28, color: Colors.blue),
+                                Icon(Icons.medication, size: 28, color: Colors.blue),
                                 SizedBox(width: 4),
-                                Icon(Icons.circle,
-                                    size: 14, color: Colors.orange),
+                                Icon(Icons.circle, size: 14, color: Colors.orange),
                               ],
                             ),
                           ),
@@ -230,52 +260,27 @@ class _BerandaPageState extends State<BerandaPage> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  isAmbeven ? "Ambeven" : "Paracetamol",
-                                  style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold),
+                                  alarm['id_obat'],
+                                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                                 ),
                                 const SizedBox(height: 6),
                                 Row(
                                   children: [
-                                    buildTag(isAmbeven
-                                        ? "Sebelum Makan"
-                                        : "Sesudah Makan"),
+                                    buildTag(alarm['takaran']),
                                     const SizedBox(width: 8),
-                                    buildTag(
-                                        isAmbeven ? "1 Kapsul" : "2 Tablet"),
+                                    buildTag(alarm['waktu_minum']),
                                   ],
                                 ),
                                 const SizedBox(height: 8),
                                 Row(
                                   children: [
-                                    const Icon(Icons.calendar_today,
-                                        size: 16, color: Colors.grey),
+                                    const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
                                     const SizedBox(width: 6),
-                                    Text(
-                                      "21-04-2025",
-                                      style: const TextStyle(fontSize: 13),
-                                    ),
+                                    Text(alarm['tanggal_mulai'], style: const TextStyle(fontSize: 13)),
                                   ],
                                 ),
                               ],
                             ),
-                          ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                isAmbeven ? "03.29" : "14.00",
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.indigo,
-                                  fontSize: 16,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              const Icon(Icons.check_circle,
-                                  color: Colors.green, size: 24),
-                            ],
                           ),
                         ],
                       ),
@@ -285,20 +290,6 @@ class _BerandaPageState extends State<BerandaPage> {
               ),
             ),
           ],
-        ),
-      ),
-      floatingActionButton: Positioned(
-        bottom: 80, // Above the BottomAppBar
-        right: 16, // To the right
-        child: FloatingActionButton(
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const WelcomeChat()),
-            );
-          },
-          backgroundColor: Colors.green,
-          child: const Icon(Icons.chat, color: Colors.white),
         ),
       ),
     );
@@ -337,10 +328,7 @@ class _BerandaPageState extends State<BerandaPage> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
-                    "Informasi Obat",
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                  ),
+                  const Text("Informasi Obat", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                   const SizedBox(height: 10),
                   Expanded(
                     child: SingleChildScrollView(
@@ -380,17 +368,14 @@ class _BerandaPageState extends State<BerandaPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label,
-              style:
-                  const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+          Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
           const SizedBox(height: 4),
           TextFormField(
             initialValue: value,
             readOnly: true,
             maxLines: maxLines,
             decoration: InputDecoration(
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               filled: true,
               fillColor: Colors.white,
               isDense: true,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../main.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class WelcomePage extends StatefulWidget {
   const WelcomePage({super.key});
@@ -146,19 +147,26 @@ class _WelcomePageState extends State<WelcomePage>
                 ),
               ),
               const SizedBox(height: 10),
-              ElevatedButton(
-                onPressed: isLoading ? null : _login,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.deepPurple,
-                  minimumSize: const Size(double.infinity, 50),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text("Masuk", style: TextStyle(fontSize: 16)),
-              ),
+ElevatedButton(
+  onPressed: isLoading ? null : _login,
+  style: ElevatedButton.styleFrom(
+    backgroundColor: Colors.deepPurple,
+    minimumSize: const Size(double.infinity, 50),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(12),
+    ),
+  ),
+  child: isLoading
+      ? const CircularProgressIndicator(color: Colors.white)
+      : const Text(
+          "Masuk",
+          style: TextStyle(
+            fontSize: 16,
+            color: Colors.white, // Warna teks diatur menjadi putih
+          ),
+        ),
+),
+
             ],
           ),
         ),
@@ -198,17 +206,21 @@ class _WelcomePageState extends State<WelcomePage>
 
       if (response.statusCode == 200) {
         if (data['success']) {
-          Navigator.pop(context); // tutup modal
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text(
-                    "Login berhasil! Selamat datang, ${data['user']['nama']}")),
-          );
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const MyHomePage()),
-          );
-        } else {
+  final pasien = data['pasien'];
+  saveUserData(pasien); // simpan semua data ke SharedPreferences
+
+  Navigator.pop(context); // tutup modal
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+        content: Text(
+            "Login berhasil! Selamat datang, ${pasien['nama_pasien']}")),
+  );
+  Navigator.pushReplacement(
+    context,
+    MaterialPageRoute(builder: (context) => const MyHomePage()),
+  );
+}
+else {
           setState(() {
             if ((data['message'] ?? '').toLowerCase().contains('nik')) {
               nikError = data['message'];
@@ -231,6 +243,21 @@ class _WelcomePageState extends State<WelcomePage>
       );
     }
   }
+
+ void saveUserData(Map<String, dynamic> pasien) async {
+  final prefs = await SharedPreferences.getInstance();
+  prefs.setBool('isLoggedIn', true);
+  prefs.setString('id_pasien', pasien['id_pasien'].toString());
+  prefs.setString('nama_pasien', pasien['nama_pasien']);
+  prefs.setString('nik', pasien['nik']);
+  prefs.setString('email', pasien['email']);
+  prefs.setString('jenis_kelamin', pasien['jenis_kelamin']);
+  prefs.setString('tanggal_lahir', pasien['tanggal_lahir']);
+  prefs.setString('nomor_hp', pasien['nomor_hp']);
+  prefs.setString('nomor_hp_keluarga', pasien['nomor_hp_keluarga']);
+  prefs.setString('riwayat_penyakit', pasien['riwayat_penyakit']);
+}
+
 
   @override
   Widget build(BuildContext context) {

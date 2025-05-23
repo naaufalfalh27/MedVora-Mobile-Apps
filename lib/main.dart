@@ -9,8 +9,11 @@ import 'pages/pengaturan.dart';
 import 'pages/welcome_page.dart';
 import 'pages/chat.dart';
 import 'pages/const.dart'; // tempat simpan geminiApiKey
+import 'package:shared_preferences/shared_preferences.dart';
+import 'screens/splash_screen.dart'; // impor splash
 
-void main() {
+void main() async{
+  WidgetsFlutterBinding.ensureInitialized();
   // Inisialisasi Gemini API
   Gemini.init(apiKey: geminiApiKey);
 
@@ -20,6 +23,17 @@ void main() {
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
+
+   Future<Widget> _getInitialPage() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
+
+    if (isLoggedIn) {
+      return const MyHomePage(); // langsung masuk ke beranda jika sudah login
+    } else {
+      return const WelcomePage(); // jika belum login
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,7 +46,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF5D5FEF)),
       ),
       // Halaman pertama yang ditampilkan adalah WelcomePage
-      home: const WelcomePage(),
+      home: const SplashScreen(),
     );
   }
 }
@@ -62,40 +76,42 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
-      body: _pages[_currentIndex], // Menampilkan halaman sesuai index
-      bottomNavigationBar: CurvedNavigationBar(
-        index: _currentIndex, // Menandakan index aktif
-        backgroundColor: Colors.transparent,
-        color: const Color(0xFF5D5FEF),
-        buttonBackgroundColor: const Color(0xFF5D5FEF),
-        animationDuration: const Duration(milliseconds: 300),
-        height: 60,
-        items: [
-          _buildNavItem(const Icon(Icons.home), 0),
-          _buildNavItem(const Icon(Icons.priority_high), 1),
-          _buildNavItem(const Icon(Icons.book), 2),
-          _buildNavItem(const Icon(Icons.settings), 3),
-        ],
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index; // Mengubah halaman yang ditampilkan
-          });
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
+   return Scaffold(
+  extendBody: true, // ⬅️ Ini memungkinkan body "masuk" ke bawah navbar
+  backgroundColor: const Color(0xFF5D5FEF), // Tetap ungu untuk latar belakang
+  body: _pages[_currentIndex],
+  bottomNavigationBar: CurvedNavigationBar(
+    index: _currentIndex,
+    backgroundColor: Colors.transparent, // ⬅️ Bikin celah putih jadi transparan
+    color: const Color(0xFF5D5FEF),
+    buttonBackgroundColor: const Color(0xFF5D5FEF),
+    animationDuration: const Duration(milliseconds: 300),
+    height: 60,
+    items: [
+      _buildNavItem(const Icon(Icons.home), 0),
+      _buildNavItem(const Icon(Icons.priority_high), 1),
+      _buildNavItem(const Icon(Icons.book), 2),
+      _buildNavItem(const Icon(Icons.settings), 3),
+    ],
+    onTap: (index) {
+      setState(() {
+        _currentIndex = index;
+      });
+    },
+  ),
+ floatingActionButton: _currentIndex == 0
+    ? FloatingActionButton(
         onPressed: () {
           Navigator.push(
             context,
-            MaterialPageRoute(
-                builder: (_) => const ChatPage()), // Navigasi ke halaman chat
+            MaterialPageRoute(builder: (_) => const ChatPage()),
           );
         },
         backgroundColor: const Color(0xFF5D5FEF),
-        child: const Icon(Icons.chat),
-      ),
-    );
+        child: const Icon(Icons.chat, color: Colors.white,),
+      )
+    : null,
+);
   }
 
   // Fungsi untuk membangun item bottom navigation
@@ -110,13 +126,13 @@ class _MyHomePageState extends State<MyHomePage> {
           size: 30,
           color: isActive
               ? Colors.white
-              : Colors.black, // Menentukan warna berdasarkan status aktif
+              : const Color.fromARGB(255, 255, 255, 255), // Menentukan warna berdasarkan status aktif
         ),
         if (!isActive)
           Text(
             _labels[index], // Menampilkan label jika tidak aktif
             style: const TextStyle(
-              color: Colors.black,
+              color: Color.fromARGB(255, 255, 255, 255),
               fontSize: 12,
             ),
           ),

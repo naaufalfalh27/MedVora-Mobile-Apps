@@ -1,0 +1,2 @@
+C:/Mobile/mediVora/android/app/.cxx/Debug/25a4k30x/x86_64/CMakeFiles/edit_cache.dir
+C:/Mobile/mediVora/android/app/.cxx/Debug/25a4k30x/x86_64/CMakeFiles/rebuild_cache.dir
